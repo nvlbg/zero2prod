@@ -4,7 +4,7 @@ pub struct Settings {
     pub http_listen_port: u16,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Clone)]
 pub struct DatabaseSettings {
     pub hostname: String,
     pub port: u16,
