@@ -1,3 +1,5 @@
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
+
 pub enum Environment {
     Development,
     Production
@@ -43,14 +45,23 @@ pub struct DatabaseSettings {
     pub username: String,
     pub password: String,
     pub database_name: String,
+    pub require_ssl: bool,
 }
 
 impl DatabaseSettings {
-    pub fn connection_string(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username, self.password, self.hostname, self.port, self.database_name,
-        )
+    pub fn connect_options(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            PgSslMode::Prefer
+        };
+        PgConnectOptions::new()
+            .host(&self.hostname)
+            .port(self.port)
+            .username(&self.username)
+            .password(&self.password)
+            .database(&self.database_name)
+            .ssl_mode(ssl_mode)
     }
 }
 
@@ -70,6 +81,11 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         )
         .add_source(
             config::File::from(config_dir.join(env_config_file))
+        )
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__")
         )
         .build()?;
 

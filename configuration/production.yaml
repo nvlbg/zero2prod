@@ -1,2 +1,4 @@
 application:
   http_bind_address: 0.0.0.0
+database_settings:
+  require_ssl: true
