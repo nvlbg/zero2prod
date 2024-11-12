@@ -1,6 +1,6 @@
 use std::{net::TcpListener, sync::LazyLock};
 
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{postgres::PgPoolOptions, Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
@@ -58,7 +58,7 @@ async fn configure_database(settings: &DatabaseSettings) -> PgPool {
         password: "password".to_string(),
         ..settings.clone()
     };
-    let mut connection = PgConnection::connect(&maintenance_settings.connection_string())
+    let mut connection = PgConnection::connect_with(&maintenance_settings.connect_options())
         .await
         .expect("Failed to connect to postgres");
 
@@ -73,9 +73,8 @@ async fn configure_database(settings: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create database");
 
-    let connection_pool = PgPool::connect(&settings.connection_string())
-        .await
-        .expect("Failed to connect to postgres");
+    let connection_pool = PgPoolOptions::new()
+        .connect_lazy_with(settings.connect_options());
 
     sqlx::migrate!("./migrations")
         .run(&connection_pool)

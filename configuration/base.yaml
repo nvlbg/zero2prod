@@ -7,4 +7,4 @@ database:
   username: app
   password: secret
   database_name: newsletter
-  require_ssl: true
+  require_ssl: false
