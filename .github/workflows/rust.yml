@@ -61,3 +61,5 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Check that queries are fresh
+      run: cargo sqlx prepare --workspace --check -- --all-targets

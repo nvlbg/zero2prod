@@ -1,6 +1,38 @@
+pub enum Environment {
+    Development,
+    Production
+}
+
+impl Environment {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Environment::Development => "development",
+            Environment::Production => "production"
+        }
+    }
+}
+
+impl TryFrom<String> for Environment {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.to_lowercase().as_str() {
+            "development" => Ok(Environment::Development),
+            "production" => Ok(Environment::Production),
+            other => Err(format!("{} is not a supported environment", other))
+        }
+    }
+}
+
 #[derive(serde::Deserialize)]
 pub struct Settings {
-    pub database_settings: DatabaseSettings,
+    pub application: ApplicationSettings,
+    pub database: DatabaseSettings,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ApplicationSettings {
+    pub http_bind_address: String,
     pub http_listen_port: u16,
 }
 
@@ -17,21 +49,29 @@ impl DatabaseSettings {
     pub fn connection_string(&self) -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            self.username,
-            self.password,
-            self.hostname,
-            self.port,
-            self.database_name,
+            self.username, self.password, self.hostname, self.port, self.database_name,
         )
     }
 }
 
 pub fn get_configuration() -> Result<Settings, config::ConfigError> {
+    let base_path = std::env::current_dir().expect("Failed to determine current directory");
+    let config_dir = base_path.join("configuration");
+
+    let environment: Environment = std::env::var("APP_ENVIRONMENT")
+        .unwrap_or_else(|_| "development".to_string())
+        .try_into()
+        .expect("Failed to parse APP_ENVIRONMENT");
+    let env_config_file = format!("{}.yaml", environment.as_str());
+
     let settings = config::Config::builder()
         .add_source(
-            config::File::new("configuration.yaml", config::FileFormat::Yaml)
+            config::File::from(config_dir.join("base.yaml"))
+        )
+        .add_source(
+            config::File::from(config_dir.join(env_config_file))
         )
         .build()?;
-    
+
     settings.try_deserialize::<Settings>()
 }

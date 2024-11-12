@@ -36,8 +36,8 @@ async fn spawn_app() -> TestApp {
     let address = format!("http://127.0.0.1:{}", port);
 
     let mut configuration = get_configuration().expect("Failed to read configuration.");
-    configuration.database_settings.database_name = Uuid::new_v4().to_string();
-    let connection_pool = configure_database(&configuration.database_settings).await;
+    configuration.database.database_name = Uuid::new_v4().to_string();
+    let connection_pool = configure_database(&configuration.database).await;
 
     let server = zero2prod::startup::run(listener, connection_pool.clone())
         .expect("Failed to bind to tcp listener");
