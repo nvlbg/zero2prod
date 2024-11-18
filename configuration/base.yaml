@@ -1,6 +1,7 @@
 application:
   http_bind_address: 127.0.0.1
   http_listen_port: 8000
+  base_url: http://127.0.0.1
 database:
   hostname: 127.0.0.1
   port: 5432

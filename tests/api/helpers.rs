@@ -1,7 +1,9 @@
 use std::sync::LazyLock;
 
+use reqwest::Url;
 use sqlx::{postgres::PgPoolOptions, Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+use wiremock::MockServer;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings}, startup::{get_connection_pool, Application}, telemetry::{get_subscriber, init_subscriber}
 };
@@ -18,7 +20,14 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 
 pub struct TestApp {
     pub address: String,
+    pub port: u16,
     pub db_pool: PgPool,
+    pub email_server: MockServer,
+}
+
+pub struct ConfirmationLinks {
+    pub html: reqwest::Url,
+    pub text: reqwest::Url,
 }
 
 impl TestApp {
@@ -31,10 +40,39 @@ impl TestApp {
             .await
             .expect("Failed to post to /subscriptions")
     }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        let get_link = |s: &str| {
+            let links: Vec<_> = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect();
+            assert_eq!(links.len(), 1);
+            let raw_link = links[0].as_str().to_owned();
+            let mut confirmation_link = Url::parse(&raw_link).unwrap();
+            // Let's make sure we don't call random APIs on the web
+            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            // Let's rewrite the URL to include the port
+            confirmation_link.set_port(Some(self.port)).unwrap();
+            confirmation_link
+        };
+
+        let html_link = get_link(&body["html"].as_str().unwrap());
+        let text_link = get_link(&body["html"].as_str().unwrap());
+
+        ConfirmationLinks {
+            html: html_link,
+            text: text_link,
+        }
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
+
+    // Launch a mock server to stand in for mailersend's API
+    let email_server = MockServer::start().await;
 
     // Randomise configuration to ensure test isolation
     let mut configuration = get_configuration().expect("Failed to read configuration.");
@@ -42,18 +80,23 @@ pub async fn spawn_app() -> TestApp {
     configuration.database.database_name = Uuid::new_v4().to_string();
     // Use different listen port for each test
     configuration.application.http_listen_port = 0;
+    // Use the mock server as email API
+    configuration.email_client.base_url = email_server.uri();
 
     // Create and migrate the database
     configure_database(&configuration.database).await;
 
     // Launch the application as a background task
     let application = Application::build(configuration.clone()).await.expect("Failed to build the application");
-    let address = format!("http://127.0.0.1:{}", application.port());
+    let port = application.port();
+    let address = format!("http://127.0.0.1:{}", port);
     let _ = tokio::spawn(application.run_until_stopped());
 
     TestApp {
         address,
+        port,
         db_pool: get_connection_pool(&configuration.database),
+        email_server,
     }
 }
 

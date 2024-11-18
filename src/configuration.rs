@@ -39,6 +39,7 @@ pub struct Settings {
 pub struct ApplicationSettings {
     pub http_bind_address: String,
     pub http_listen_port: u16,
+    pub base_url: String,
 }
 
 #[derive(serde::Deserialize, Clone)]
