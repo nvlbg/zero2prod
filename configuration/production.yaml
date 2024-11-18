@@ -2,3 +2,6 @@ application:
   http_bind_address: 0.0.0.0
 database_settings:
   require_ssl: true
+email_client:
+  base_url: https://api.mailersend.com/v1
+  sender_email: test@gmail.com
