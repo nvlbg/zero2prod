@@ -61,13 +61,14 @@ pub async fn subscribe(
     if transaction.commit().await.is_err() {
         return HttpResponse::InternalServerError();
     }
-    if send_confirmation_email(&email_client, subscriber, &base_url.0, &subscription_token)
-        .await
-        .is_err()
+    match send_confirmation_email(&email_client, subscriber, &base_url.0, &subscription_token).await
     {
-        return HttpResponse::InternalServerError();
+        Ok(_) => HttpResponse::Ok(),
+        Err(e) => {
+            tracing::error!("Failed to send out an email: {:?}", e);
+            return HttpResponse::InternalServerError();
+        }
     }
-    HttpResponse::Ok()
 }
 
 #[tracing::instrument(name = "Saving subscriber in the database", skip(transaction, subscriber))]
