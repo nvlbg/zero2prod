@@ -2,5 +2,6 @@
 target/
 tests/
 Dockerfile
+render.yaml
 scripts/
 migrations/

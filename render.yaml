@@ -1,0 +1,56 @@
+databases:
+- name: newsletter
+  databaseName: newsletter_8h2a
+  user: newsletter_8h2a_user
+  plan: free
+  region: frankfurt
+  ipAllowList:
+  - source: 0.0.0.0/0
+    description: everywhere
+  postgresMajorVersion: "16"
+services:
+- type: web
+  name: zero2prod
+  runtime: docker
+  repo: https://github.com/nvlbg/zero2prod
+  plan: free
+  envVars:
+  - key: APP_APPLICATION__HTTP_LISTEN_PORT
+    fromService:
+      type: web
+      name: zero2prod
+      envVarKey: PORT
+  - key: APP_APPLICATION__BASE_URL
+    fromService:
+      type: web
+      name: zero2prod
+      envVarKey: RENDER_EXTERNAL_URL
+  - key: APP_DATABASE__HOSTNAME
+    fromDatabase:
+      name: newsletter
+      property: host
+  - key: APP_DATABASE__PORT
+    fromDatabase:
+      name: newsletter
+      property: port
+  - key: APP_DATABASE__USERNAME
+    fromDatabase:
+      name: newsletter
+      property: user
+  - key: APP_DATABASE__PASSWORD
+    fromDatabase:
+      name: newsletter
+      property: password
+  - key: APP_DATABASE__DATABASE_NAME
+    fromDatabase:
+      name: newsletter
+      property: database
+  - key: APP_EMAIL_CLIENT__SENDER_EMAIL
+    sync: false
+  - key: APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN
+    sync: false
+  region: frankfurt
+  healthCheckPath: /health_check
+  dockerContext: .
+  dockerfilePath: ./Dockerfile
+version: "1"
