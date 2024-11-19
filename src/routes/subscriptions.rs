@@ -14,6 +14,8 @@ use crate::{
     startup::ApplicationBaseUrl,
 };
 
+use super::error_chain_fmt;
+
 #[derive(serde::Deserialize)]
 pub struct FormData {
     pub email: String,
@@ -151,19 +153,6 @@ impl std::error::Error for StoreTokenError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.0)
     }
-}
-
-fn error_chain_fmt(
-    e: &impl std::error::Error,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    writeln!(f, "{}\n", e)?;
-    let mut current = e.source();
-    while let Some(e) = current {
-        writeln!(f, "Caused by:\n\t{}", e)?;
-        current = e.source()
-    }
-    Ok(())
 }
 
 #[tracing::instrument(
