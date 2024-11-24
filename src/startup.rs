@@ -1,4 +1,4 @@
-use crate::{configuration::{DatabaseSettings, Settings}, email_client::EmailClient, routes::{confirm, health, subscribe}};
+use crate::{configuration::{DatabaseSettings, Settings}, email_client::EmailClient, routes::{confirm, health, publish_newsletters, subscribe}};
 use actix_web::{dev::Server, web, App, HttpServer};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
@@ -74,6 +74,7 @@ pub fn run(
             .route("/health_check", web::get().to(health))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
+            .route("/newsletters", web::post().to(publish_newsletters))
             .app_data(connection_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
