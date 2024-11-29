@@ -32,7 +32,8 @@ impl TryFrom<String> for Environment {
 pub struct Settings {
     pub application: ApplicationSettings,
     pub database: DatabaseSettings,
-    pub email_client: EmailClientSettings
+    pub email_client: EmailClientSettings,
+    pub redis_uri: String,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -40,6 +41,7 @@ pub struct ApplicationSettings {
     pub http_bind_address: String,
     pub http_listen_port: u16,
     pub base_url: String,
+    pub hmac_secret: String,
 }
 
 #[derive(serde::Deserialize, Clone)]

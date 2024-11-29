@@ -3,7 +3,7 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::{spawn_app, ConfirmationLinks, TestApp};
+use crate::helpers::{assert_is_redirect_to, spawn_app, ConfirmationLinks, TestApp};
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
@@ -18,19 +18,24 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
         .mount(&app.email_server)
         .await;
 
-    // Act
+    // Act part 1 - login
+    let response = app.post_login(&serde_json::json!({
+        "username": &app.test_user.username,
+        "password": &app.test_user.password
+    })).await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
+    // Act part 2 - send newsletter
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title",
-        "content": {
-            "text": "Text content",
-            "html": "<p>Html content</p>"
-        }
+        "content_text": "Text content",
+        "content_html": "<p>Html content</p>"
     });
-    let response = app.post_newsletters(newsletter_request_body).await;
+    let response = app.post_newsletters(&newsletter_request_body).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 200);
-    // Mock verifies on Dop that we haven't sent the newsletter email
+    // Mock verifies on Drop that we haven't sent the newsletter email
 }
 
 #[tokio::test]
@@ -45,15 +50,20 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
         .mount(&app.email_server)
         .await;
 
-    // Act
+    // Act part 1 - login
+    let response = app.post_login(&serde_json::json!({
+        "username": &app.test_user.username,
+        "password": &app.test_user.password
+    })).await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
+    // Act part 2 - send newsletter
     let newsletter_request_body = serde_json::json!({
         "title": "Newsletter title",
-        "content": {
-            "text": "Text content",
-            "html": "<p>Html content</p>"
-        }
+        "content_text": "Text content",
+        "content_html": "<p>Html content</p>"
     });
-    let response = app.post_newsletters(newsletter_request_body).await;
+    let response = app.post_newsletters(&newsletter_request_body).await;
 
     // Assert
     assert_eq!(response.status().as_u16(), 200);
@@ -67,10 +77,8 @@ async fn newsletters_returns_400_for_invalid_data() {
     let test_cases = vec![
         (
             serde_json::json!({
-                "content": {
-                    "text": "Text content",
-                    "html": "<p>Html content</p>"
-                }
+                "content_text": "Text content",
+                "content_html": "<p>Html content</p>"
             }),
             "missing title",
         ),
@@ -82,9 +90,16 @@ async fn newsletters_returns_400_for_invalid_data() {
         ),
     ];
 
+    // Act part 1 - login
+    let response = app.post_login(&serde_json::json!({
+        "username": &app.test_user.username,
+        "password": &app.test_user.password
+    })).await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
     for (invalid_body, error_message) in test_cases {
-        // Act
-        let response = app.post_newsletters(invalid_body).await;
+        // Act part 2 - try to send newsletter
+        let response = app.post_newsletters(&invalid_body).await;
 
         // Assert
         assert_eq!(
@@ -94,6 +109,27 @@ async fn newsletters_returns_400_for_invalid_data() {
             error_message
         );
     }
+}
+
+#[tokio::test]
+async fn cannot_send_newsletter_without_logging_in_first() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act
+    let response = app.api_client
+        .post(format!("{}/admin/newsletters", &app.address))
+        .json(&serde_json::json!({
+            "title": "Title",
+            "content_text": "Text content",
+            "content_html": "<p>Html content</p>"
+        }))
+        .send()
+        .await
+        .expect("Failed to execute request");
+
+    // Assert
+    assert_is_redirect_to(&response, "/login");
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
@@ -119,7 +155,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .unwrap()
         .pop()
         .unwrap();
-    app.get_confirmation_links(&email_request)
+    app.get_confirmation_links(email_request)
 }
 
 async fn create_confirmed_subscriber(app: &TestApp) {
