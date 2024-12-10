@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
 use actix_web::{
-    body::MessageBody, dev::{ServiceRequest, ServiceResponse}, http::header::LOCATION, middleware::Next, FromRequest, HttpMessage, HttpResponse
+    body::MessageBody, dev::{ServiceRequest, ServiceResponse}, middleware::Next, FromRequest, HttpMessage
 };
 use uuid::Uuid;
 
-use crate::session_state::TypedSession;
+use crate::{session_state::TypedSession, utils::see_other};
 
 #[derive(Copy, Clone, Debug)]
 pub struct UserId(Uuid);
@@ -45,8 +45,3 @@ pub async fn reject_anonymous_users(
     }
 }
 
-fn see_other(location: &str) -> HttpResponse {
-    HttpResponse::SeeOther()
-        .insert_header((LOCATION, location))
-        .finish()
-}

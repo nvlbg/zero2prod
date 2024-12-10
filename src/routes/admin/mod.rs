@@ -1,5 +1,5 @@
 use actix_web::{
-    http::header::{ContentType, LOCATION},
+    http::header::ContentType,
     web, HttpResponse,
 };
 use actix_web_flash_messages::FlashMessage;
@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     authentication::{change_password, validate_credentials, AuthError, Credentials, UserId},
-    session_state::TypedSession,
+    session_state::TypedSession, utils::see_other,
 };
 
 mod newsletters;
@@ -22,7 +22,7 @@ pub async fn admin_dashboard(
     user_id: web::ReqData<UserId>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let username = get_username(&*user_id.into_inner(), &pool)
+    let username = get_username(&user_id.into_inner(), &pool)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
     Ok(HttpResponse::Ok()
@@ -91,12 +91,6 @@ pub async fn logout(session: TypedSession) -> Result<HttpResponse, actix_web::Er
     FlashMessage::info("You have successfully logged out".to_string()).send();
     session.logout();
     Ok(see_other("/login"))
-}
-
-fn see_other(location: &str) -> HttpResponse {
-    HttpResponse::SeeOther()
-        .insert_header((LOCATION, location))
-        .finish()
 }
 
 #[tracing::instrument(name = "Get username", skip(pool))]

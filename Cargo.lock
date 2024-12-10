@@ -3940,6 +3940,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sqlx",
  "thiserror 2.0.3",
  "tokio",
